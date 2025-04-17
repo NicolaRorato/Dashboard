@@ -1,0 +1,182 @@
+from dash import Input, Output, State
+import plotly.express as px
+import pandas as pd
+from utils.color_utils import get_color_scale
+
+
+def register_callbacks(app):
+    @app.callback(
+        Output('chart', 'figure'),
+        Output('chart', 'style'),
+        Input('df-store', 'data'),
+        Input('x-axis-dropdown', 'value'),
+        Input('line-chart-dropdown', 'value'),
+        Input('area-chart-dropdown', 'value'),
+        Input('scatter-chart-dropdown', 'value'),
+        Input('secondary-yaxis-dropdown', 'value'),
+        Input('color-dropdown', 'value'),
+    )
+    def update_chart(df, x_axis, line_columns, area_columns, scatter_columns, secondary_yaxis_columns, color):
+        # If no columns are selected, return an empty figure
+        if not x_axis:
+            return {}, {"display": "none"}
+
+        # Create an empty figure
+        fig = px.line()
+
+        df = pd.DataFrame(df)
+        if color is not None:
+            color_values, color_scale = get_color_scale(df, color)
+            color_params = {
+                'marker': dict(color=color_values),
+                'text': df[color],
+            }
+        else:
+            color_params = {}
+        # Plot line charts
+        if line_columns:
+            for col in line_columns:
+                yaxis = 'y2' if col in secondary_yaxis_columns else 'y'
+                name = f'{col} (right)' if col in secondary_yaxis_columns else f'Line - {col}'
+                fig.add_scatter(x=df[x_axis], y=df[col], mode='lines+markers', name=name, yaxis=yaxis,
+                                **color_params,
+                                )
+
+        # Plot area charts
+        if area_columns:
+            for col in area_columns:
+                yaxis = 'y2' if col in secondary_yaxis_columns else 'y'
+                name = f'{col} (right)' if col in secondary_yaxis_columns else f'Line - {col}'
+                fig.add_scatter(x=df[x_axis], y=df[col], fill='tozeroy', name=name, yaxis=yaxis,
+                                **color_params,
+                                )
+
+        # Plot scatter charts
+        if scatter_columns:
+            for col in scatter_columns:
+                yaxis = 'y2' if col in secondary_yaxis_columns else 'y'
+                name = f'{col} (right)' if col in secondary_yaxis_columns else f'Line - {col}'
+                # Get the color values and scale
+                fig.add_scatter(x=df[x_axis], y=df[col], mode='markers', name=name, yaxis=yaxis,
+                                **color_params,
+                                )
+
+        # Customize the layout with secondary Y-axis
+        fig.update_layout(
+            title=f'Chart of {x_axis} vs ({", ".join(list(set(line_columns + area_columns + scatter_columns)))})',
+            xaxis_title=x_axis,
+            yaxis_title='y-axis (left)',
+            # template='plotly_dark',
+            xaxis=dict(
+                ticks='outside',  # Optional: Move the ticks outside the plot
+            ),
+            yaxis=dict(
+                ticks='outside',  # Optional: Move the ticks outside the plot
+            ),
+            yaxis2=dict(
+                overlaying='y',
+                side='right',
+                title='y-axis (right)',
+                ticks='outside',  # Optional: Move the ticks outside the plot
+            ),
+            margin=dict(
+                l=100,  # Left margin (distance from left edge to y-axis)
+                r=100,  # Right margin (distance from right edge to y-axis)
+                t=100,  # Top margin (distance from top edge to title)
+                b=100  # Bottom margin (distance from bottom edge to x-axis)
+            ),
+            height=500,
+            hoverlabel=dict(
+                namelength=30,  # Limit trace name length in hover to 15 characters
+            ),
+        )
+
+        return fig, {'display': 'block'}
+
+
+def register_chart_callbacks(app, block_id):
+    # Dynamic component IDs
+    chart_id = f'chart-{block_id}'
+    store_id = f'df-store-{block_id}'
+    x_dropdown = f'x-axis-dropdown-{block_id}'
+    line_dropdown = f'line-chart-dropdown-{block_id}'
+    area_dropdown = f'area-chart-dropdown-{block_id}'
+    scatter_dropdown = f'scatter-chart-dropdown-{block_id}'
+    y2_dropdown = f'secondary-y-axis-dropdown-{block_id}'
+    color_dropdown = f'color-dropdown-{block_id}'
+
+    @app.callback(
+        Output(chart_id, 'figure'),
+        Output(chart_id, 'style'),
+        Input(store_id, 'data'),
+        Input(x_dropdown, 'value'),
+        Input(line_dropdown, 'value'),
+        Input(area_dropdown, 'value'),
+        Input(scatter_dropdown, 'value'),
+        Input(y2_dropdown, 'value'),
+        Input(color_dropdown, 'value'),
+    )
+    def update_chart(df_data, x_axis, line_cols, area_cols, scatter_cols, y2_cols, color_col):
+        # If no columns are selected, return an empty hidden figure
+        if not x_axis:
+            return {}, {'display': 'none'}
+
+        # Create an empty figure
+        fig = px.line()
+
+        # Convert serialized data object to df
+        df = pd.DataFrame(df_data)
+        color_params = {}
+        if color_col:
+            color_values, color_scale = get_color_scale(df, color_col)
+            color_params = {
+                'marker': dict(color=color_values),
+                'text': df[color_col],
+            }
+
+        # Plot line charts
+        for col in (line_cols or []):
+            yaxis = 'y2' if col in y2_cols else 'y'
+            name = f'{col} (right)' if col in y2_cols else f'Line - {col}'
+            fig.add_scatter(x=df[x_axis], y=df[col], mode='lines', name=name, yaxis=yaxis, **color_params)
+        # Plot area charts
+        for col in (area_cols or []):
+            yaxis = 'y2' if col in y2_cols else 'y'
+            name = f'{col} (right)' if col in y2_cols else f'Line - {col}'
+            fig.add_scatter(x=df[x_axis], y=df[col], fill='tozeroy', name=name, yaxis=yaxis, **color_params)
+        # Plot scatter charts
+        for col in (scatter_cols or []):
+            yaxis = 'y2' if col in y2_cols else 'y'
+            name = f'{col} (right)' if col in y2_cols else f'Line - {col}'
+            fig.add_scatter(x=df[x_axis], y=df[col], mode='markers', name=name, yaxis=yaxis, **color_params)
+
+        # Customize the layout with secondary Y-axis
+        fig.update_layout(
+            title=f'Chart of {x_axis} vs ({", ".join(list(set(line_cols + area_cols + scatter_cols)))})',
+            xaxis_title=x_axis,
+            yaxis_title='y-axis (left)',
+            # template='plotly_dark',
+            xaxis=dict(
+                ticks='outside',  # Optional: Move the ticks outside the plot
+            ),
+            yaxis=dict(
+                ticks='outside',  # Optional: Move the ticks outside the plot
+            ),
+            yaxis2=dict(
+                overlaying='y',
+                side='right',
+                title='y-axis (right)',
+                ticks='outside',  # Optional: Move the ticks outside the plot
+            ),
+            margin=dict(
+                l=100,  # Left margin (distance from left edge to y-axis)
+                r=100,  # Right margin (distance from right edge to y-axis)
+                t=100,  # Top margin (distance from top edge to title)
+                b=100  # Bottom margin (distance from bottom edge to x-axis)
+            ),
+            height=500,
+            hoverlabel=dict(
+                namelength=30,  # Limit trace name length in hover to 15 characters
+            ),
+        )
+        return fig, {'display': 'block'}

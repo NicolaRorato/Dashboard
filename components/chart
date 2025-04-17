@@ -1,0 +1,6 @@
+from dash import dcc
+
+chart = dcc.Graph(
+    id='chart',
+    style={'display': 'none'}
+)

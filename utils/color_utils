@@ -1,0 +1,9 @@
+import pandas as pd
+
+def get_color_scale(df, color_col):
+    if pd.api.types.is_numeric_dtype(df[color_col]):
+        return df[color_col], 'Viridis'
+    else:
+        unique_categories = df[color_col].unique()
+        color_map = {cat: i for i, cat in enumerate(unique_categories)}
+        return df[color_col].map(color_map), 'Set1'
